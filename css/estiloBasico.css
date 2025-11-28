@@ -1,0 +1,149 @@
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background-image: linear-gradient(to right, rgba(156, 151, 204, 0.678), rgba(63, 165, 224, 0.74));
+    color: white;
+    text-align: center;
+}
+.box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 15px;
+    border-radius: 15px;
+    width: 80%;
+    color: #fff;
+    max-height: 100%;
+    max-width: 500px;
+}
+
+fieldset {
+    border: 3px solid dodgerblue;
+    max-height: 100vh;
+}
+
+legend {
+    border: 1px solid dodgerblue;
+    padding: 10px;
+    text-align: center;
+    background-color: dodgerblue;
+    border-radius: 8px;
+}
+
+.inputBox {
+    position: relative;
+}
+
+.inputUser {
+    background: none;
+    border: none;
+    border-bottom: 1px solid white;
+    outline: none;
+    color: white;
+    font-size: 15px;
+    width: 95%;
+    letter-spacing: 3px;
+}
+
+.labelInput {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    pointer-events: none;
+    transition: .5s;
+}
+
+.inputUser:focus~.labelInput,
+.inputUser:valid~.labelInput {
+    top: -20px;
+    font-size: 12px;
+    color: rgb(102, 173, 245)
+}
+#data_nascimento {
+    border: none;
+    padding: 8px;
+    border-radius: 10px;
+    outline: none;
+    font-size: 15px;
+}
+
+input {
+    padding: 15px;
+    border: none;
+    outline: none;
+    font-size: 15px
+}
+
+#update{
+    align-self: baseline;
+    background-image: linear-gradient(to right, rgb(0, 92, 197), rgb(90, 20, 220));
+    width: 100%;
+    border: none;
+    padding: 15px;
+    color: white;
+    font-size: 15px;
+    cursor: pointer;
+    border-radius: 10px;
+}
+#update:hover{
+    background-image: linear-gradient(to right, rgb(0, 80, 172), rgb(80, 19, 195));
+}
+#submit {
+    align-self: baseline;
+    background-image: linear-gradient(to right, rgb(0, 92, 197), rgb(90, 20, 220));
+    width: 100%;
+    border: none;
+    padding: 15px;
+    color: white;
+    font-size: 15px;
+    cursor: pointer;
+    border-radius: 10px;
+}
+
+#submit:hover {
+    background-image: linear-gradient(to right, rgb(0, 80, 172), rgb(80, 19, 195));
+}
+
+
+#form {
+    background-color: white;
+    height: 250px;
+    gap: 5px;
+    padding: 10px;
+    width: 450px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-style: solid;
+    border-radius: 5px;
+    border-color: cornflowerblue;
+    border-width: 15px;
+}
+
+
+h3 {
+    text-align: center;
+    padding: 10px;
+    background-color: #3b270f5d;
+    color: rgb(241, 240, 240);
+}
+
+.Agendado {
+    text-align: center;
+    padding: none;
+
+    color: rgb(241, 240, 240);
+}
+
+.chackBox {
+    display: flex;
+    gap: 5px;
+}
+.table-bg{
+    border-radius: 15px;
+}
+
+.logo img {
+    width: 100%;    
+}
