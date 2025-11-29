@@ -1,0 +1,8 @@
+*.hack linguist-detectable=false
+*.css linguist-language=CSS
+*.js linguist-language=JavaScript
+*.php linguist-language=PHP
+*.html linguist-language=HTML
+*.jpg linguist-detectable=false
+*.jpeg linguist-detectable=false
+*.png linguist-detectable=false
