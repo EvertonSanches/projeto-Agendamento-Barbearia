@@ -15,9 +15,7 @@ if (!isset($_SESSION['tipo']) || $_SESSION['tipo'] !== 'admin') {
     exit;
 }
 
-/* ======================
-   DELETE DE AGENDAMENTO
-====================== */
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
     $id = intval($_POST['delete_id']);
 
@@ -32,9 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
 
 $hoje = date('Y-m-d');
 
-/* ======================
-   MÉTRICAS
-====================== */
+
 $agHoje = $conexao->query("
     SELECT COUNT(*) total FROM agenda WHERE data_agenda = '$hoje'
 ")->fetch_assoc()['total'];
@@ -53,9 +49,7 @@ $barbeiros = $conexao->query("
     SELECT COUNT(*) total FROM barbeiro
 ")->fetch_assoc()['total'];
 
-/* ======================
-   FILTRO
-====================== */
+
 $filtro = $_GET['filtro'] ?? '';
 $where = "";
 
@@ -69,9 +63,7 @@ if ($filtro === 'semana') {
     $where = "WHERE YEARWEEK(a.data_agenda, 1) = YEARWEEK(CURDATE(), 1)";
 }
 
-/* ======================
-   LISTAGEM
-====================== */
+
 $sql = "
     SELECT 
         a.id_agenda,
@@ -169,6 +161,46 @@ $result = $conexao->query($sql);
             padding: 20px;
             border-radius: 12px;
         }
+        .card-metric {
+            transition: 
+            transform 0.25s ease,
+            box-shadow 0.25s ease,
+            background-color 0.25s ease;
+        cursor: pointer;
+        }
+
+        .card-metric:hover {
+            transform:translateY(-6px);
+            box-shadow: 0 12px 30px rgba(0,0,0, 0.6);
+            background-color: #161616;
+        }
+
+        .card-metric:active {
+            transform: translateY(-2px);
+        }
+        .card-metric{
+            opacity: 0;
+            transform: translateY(16px);
+            animation: cardFadeup 0.5s ease-out forwards;
+        }
+        @keyframes cardFadeup{
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .card-metric:nth-child(1){
+            animation-delay: 0.5s;
+        }
+        .card-metric:nth-child(2){
+            animation-delay: 0.75s;
+        }
+        .card-metric:nth-child(3){
+            animation-delay: 0.95s;
+        }
+        .card-metric:nth-child(4){
+            animation-delay: 1.2s;
+        }
     </style>
 </head>
 
@@ -253,8 +285,6 @@ $result = $conexao->query($sql);
                         } elseif ($row['data_agenda'] === $hoje) {
                             $classe = 'data-hoje';
                         }
-
-                        // 🔹 CORREÇÃO SOMENTE DE EXIBIÇÃO
                         $dataFormatada = date('d/m/Y', strtotime($row['data_agenda']));
                         $horaFormatada = date('H:i', strtotime($row['hora_inicio']));
                     ?>

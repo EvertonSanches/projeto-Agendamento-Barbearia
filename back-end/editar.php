@@ -10,8 +10,7 @@ $tipo = getUserType();
 $idClienteSessao = $_SESSION['id_cliente'] ?? null;
 $idBarbSessao    = $_SESSION['id_barb'] ?? null;
 
-function homePorTipo($tipo)
-{
+function homePorTipo($tipo) {
     if ($tipo === 'barbeiro') return 'barbeiros.php';
     if ($tipo === 'admin') return 'admin.php';
     return 'agendados.php';
@@ -22,11 +21,13 @@ if (!isset($_GET['id_agenda'])) {
     exit;
 }
 
-$id = (int) $_GET['id_agenda'];
+$idAgenda = (int) $_GET['id_agenda'];
 
+/* ===== PERMISSÃO ===== */
 if ($tipo === 'admin') {
 
-    $sql = "SELECT * FROM agenda WHERE id_agenda = $id";
+    $sql = "SELECT * FROM agenda WHERE id_agenda = $idAgenda";
+
 } elseif ($tipo === 'barbeiro') {
 
     if (!$idBarbSessao) {
@@ -35,11 +36,11 @@ if ($tipo === 'admin') {
     }
 
     $sql = "
-        SELECT *
-        FROM agenda
-        WHERE id_agenda = $id
+        SELECT * FROM agenda
+        WHERE id_agenda = $idAgenda
           AND id_barb = $idBarbSessao
     ";
+
 } else {
 
     if (!$idClienteSessao) {
@@ -48,14 +49,14 @@ if ($tipo === 'admin') {
     }
 
     $sql = "
-        SELECT *
-        FROM agenda
-        WHERE id_agenda = $id
+        SELECT * FROM agenda
+        WHERE id_agenda = $idAgenda
           AND id_cliente = $idClienteSessao
     ";
 }
 
 $res = $conexao->query($sql);
+
 if (!$res || $res->num_rows === 0) {
     header("Location: " . homePorTipo($tipo));
     exit;
@@ -63,11 +64,13 @@ if (!$res || $res->num_rows === 0) {
 
 $agenda = $res->fetch_assoc();
 
-$dataAgenda  = $agenda['data_agenda'];
-$horaAgenda  = substr($agenda['hora_inicio'], 0, 5);
-$idBarbAtual = $agenda['id_barb'];
-$idServico   = $agenda['id_servico'];
+/* ===== DADOS ===== */
+$dataAtual        = $agenda['data_agenda'];
+$horaAtual        = $agenda['hora_inicio'];
+$idBarbAtual      = $agenda['id_barb'];
+$idServicoAtual   = $agenda['id_servico'];
 
+/* ===== BARBEIROS ===== */
 $sqlBarb = "
     SELECT id_barb, nome_barb
     FROM barbeiro
@@ -75,267 +78,233 @@ $sqlBarb = "
 ";
 $resBarb = $conexao->query($sqlBarb);
 
+/* ===== SERVIÇOS ===== */
 $sqlServ = "SELECT id_servico, nome FROM servicos";
 $resServ = $conexao->query($sqlServ);
 ?>
+
 <!DOCTYPE html>
 <html lang="pt-br">
-
 <head>
-    <meta charset="UTF-8">
-    <title>Editar Agendamento</title>
+<meta charset="UTF-8">
+<title>Editar Agendamento</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
-    <link rel="stylesheet" href="/agendamento-barbearia/css/estiloBasico.css">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+<link rel="stylesheet" href="/agendamento-barbearia/css/estiloBasico.css">
 
-    <style>
-        #dias-semana,
-        #horarios-disponiveis {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
+<style>
+/* ===== DIAS (SEM SCROLL) ===== */
+.dias-semana {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+}
 
-        .dia-btn,
-        .hora-btn {
-            padding: 8px 12px;
-            border-radius: 8px;
-            background: #1e1e1e;
-            color: #fff;
-            border: 1px solid #333;
-            cursor: pointer;
-            font-size: 14px;
-        }
+.dia-btn {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    color: #fff;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+}
 
-        .dia-btn.active,
-        .hora-btn.active {
-            background: #ffc107;
-            color: #000;
-            font-weight: bold;
-        }
+.dia-btn.active {
+    background: #ffc107;
+    color: #000;
+    font-weight: bold;
+}
 
-        .hora-btn.proximo {
-            border: 2px solid #ffc107;
-        }
+/* ===== HORÁRIOS ===== */
+.horarios {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
 
-        .skeleton {
-            width: 70px;
-            height: 36px;
-            border-radius: 8px;
-            background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 37%, #2a2a2a 63%);
-            background-size: 400% 100%;
-            animation: skeleton 1.4s ease infinite;
-        }
+.horario-btn {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    color: #fff;
+    border-radius: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+}
 
-        @keyframes skeleton {
-            0% {
-                background-position: 100% 0;
-            }
-
-            100% {
-                background-position: 0 0;
-            }
-        }
-
-        .horario-erro {
-            border: 2px solid #dc3545;
-            padding: 10px;
-            border-radius: 8px;
-        }
-    </style>
+.horario-btn.active {
+    background: #ffc107;
+    color: #000;
+    font-weight: bold;
+}
+</style>
 </head>
 
 <body class="list-bg">
 
-    <nav class="navbar navbar-dark bg-secondary">
-        <div class="container-fluid">
-            <a href="javascript:history.back()" class="navbar-brand">Voltar</a>
-            <a href="sair.php" class="btn btn-danger">Sair</a>
-        </div>
-    </nav>
-
-    <div class="container table-container table-bg mt-5" style="max-width:600px;">
-        <h1 class="mb-4">Editar Agendamento</h1>
-
-        <form action="salvarEdicao.php" method="POST" id="form-edicao">
-
-            <div class="mb-3">
-                <label class="form-label"><i class="bi bi-person"></i> Barbeiro</label>
-                <select name="id_barb" id="id_barb" class="form-control" required>
-                    <?php while ($b = $resBarb->fetch_assoc()) { ?>
-                        <option value="<?= $b['id_barb'] ?>" <?= $b['id_barb'] == $idBarbAtual ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($b['nome_barb']) ?>
-                        </option>
-                    <?php } ?>
-                </select>
-            </div>
-
-
-            <div class="mb-3">
-                <label class="form-label"><i class="bi bi-scissors"></i> Serviço</label>
-                <select name="id_servico" id="id_servico" class="form-control" required>
-                    <?php while ($s = $resServ->fetch_assoc()) { ?>
-                        <option value="<?= $s['id_servico'] ?>" <?= $s['id_servico'] == $idServico ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($s['nome']) ?>
-                        </option>
-                    <?php } ?>
-                </select>
-            </div>
-
-
-            <div class="mb-3">
-                <label class="form-label"><i class="bi bi-calendar-week"></i> Dias disponíveis</label>
-                <div id="dias-semana"></div>
-            </div>
-
-
-            <div class="mb-3">
-                <label class="form-label"><i class="bi bi-calendar-event"></i> Data</label>
-                <input type="date"
-                    name="data_agenda"
-                    id="data_agenda"
-                    class="form-control"
-                    value="<?= $dataAgenda ?>"
-                    required>
-            </div>
-
-
-            <div class="mb-4">
-                <label class="form-label"><i class="bi bi-clock"></i> Horários disponíveis</label>
-                <div id="horarios-disponiveis"></div>
-                <small id="erro-horario" class="text-danger d-none">
-                    Selecione um horário para continuar
-                </small>
-            </div>
-
-            <select name="hora_inicio" id="hora_inicio" required style="display:none;">
-                <option value="<?= $horaAgenda ?>" selected><?= $horaAgenda ?></option>
-            </select>
-
-            <input type="hidden" name="id_agenda" value="<?= $id ?>">
-
-            <button type="submit" class="btn btn-warning w-100">
-                <i class="bi bi-save"></i> Salvar Alterações
-            </button>
-
-        </form>
+<nav class="navbar navbar-dark bg-secondary">
+    <div class="container-fluid">
+        <a href="<?= homePorTipo($tipo) ?>" class="navbar-brand">Voltar</a>
+        <a href="sair.php" class="btn btn-danger">Sair</a>
     </div>
+</nav>
 
-    <script>
-        const dataInput = document.getElementById('data_agenda');
-        const horaSelect = document.getElementById('hora_inicio');
-        const barbeiroSel = document.getElementById('id_barb');
-        const servicoSel = document.getElementById('id_servico');
-        const diasContainer = document.getElementById('dias-semana');
-        const horariosContainer = document.getElementById('horarios-disponiveis');
-        const erroHorario = document.getElementById('erro-horario');
-        const form = document.getElementById('form-edicao');
+<div class="container table-container table-bg mt-5" style="max-width:600px;">
+<h1 class="mb-4">Editar Agendamento</h1>
 
+<form action="salvarEdicao.php" method="POST">
 
-        const hoje = new Date();
-        const horaAtual = hoje.getHours();
+<!-- BARBEIRO -->
+<div class="mb-3">
+<label class="form-label">Barbeiro</label>
+<select name="id_barb" id="id_barb" class="form-control" required>
+<?php while ($b = $resBarb->fetch_assoc()) { ?>
+<option value="<?= $b['id_barb'] ?>" <?= $b['id_barb']==$idBarbAtual?'selected':'' ?>>
+<?= htmlspecialchars($b['nome_barb']) ?>
+</option>
+<?php } ?>
+</select>
+</div>
 
-        let dataBaseDias = new Date(hoje);
+<!-- SERVIÇO -->
+<div class="mb-3">
+<label class="form-label">Serviço</label>
+<select name="id_servico" id="id_servico" class="form-control" required>
+<?php while ($s = $resServ->fetch_assoc()) { ?>
+<option value="<?= $s['id_servico'] ?>" <?= $s['id_servico']==$idServicoAtual?'selected':'' ?>>
+<?= htmlspecialchars($s['nome']) ?>
+</option>
+<?php } ?>
+</select>
+</div>
 
-        if (horaAtual >= 18 || dataBaseDias.getDay() === 0) {
-            dataBaseDias.setDate(dataBaseDias.getDate() + 1);
-        }
+<!-- DIAS -->
+<div class="mb-3">
+<label class="form-label">Dia</label>
+<div id="diasSemana" class="dias-semana"></div>
+<input type="date" name="data_agenda" id="data_agenda"
+       class="form-control mt-2"
+       value="<?= $dataAtual ?>" required>
+</div>
 
-        while (dataBaseDias.getDay() === 0) {
-            dataBaseDias.setDate(dataBaseDias.getDate() + 1);
-        }
+<!-- HORÁRIOS -->
+<div class="mb-4">
+<label class="form-label">Horário</label>
+<div id="horarios" class="horarios"></div>
+<input type="hidden" name="hora_inicio" id="hora_inicio"
+       value="<?= $horaAtual ?>" required>
+</div>
 
+<input type="hidden" name="id_agenda" value="<?= $idAgenda ?>">
 
-        function gerarDiasSemana() {
-            diasContainer.innerHTML = '';
+<button type="submit" class="btn btn-warning w-100">
+Salvar Alterações
+</button>
 
-            for (let i = 0; i < 7; i++) {
-                const data = new Date(dataBaseDias);
-                data.setDate(dataBaseDias.getDate() + i);
+</form>
+</div>
 
-                if (data.getDay() === 0) continue;
+<script>
+const diasContainer = document.getElementById('diasSemana');
+const horariosDiv  = document.getElementById('horarios');
+const dataInput    = document.getElementById('data_agenda');
+const horaInput    = document.getElementById('hora_inicio');
+const barbeiroSel  = document.getElementById('id_barb');
+const servicoSel   = document.getElementById('id_servico');
 
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'dia-btn';
-                btn.textContent = data.toLocaleDateString('pt-BR', {
-                    weekday: 'short',
-                    day: '2-digit',
-                    month: '2-digit'
-                });
+/* ===== DATA LOCAL (SEM UTC) ===== */
+function formatarDataLocal(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth()+1).padStart(2,'0');
+    const d = String(date.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+}
 
-                btn.dataset.date = data.toISOString().split('T')[0];
+/* ===== BASE = DATA ATUAL DO AGENDAMENTO ===== */
+const base = new Date(dataInput.value);
 
-                btn.onclick = () => {
-                    document.querySelectorAll('.dia-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    dataInput.value = btn.dataset.date;
-                    carregarHorarios();
-                };
+/* ===== GERAR DIAS ===== */
+function gerarDias() {
+    diasContainer.innerHTML = '';
 
-                diasContainer.appendChild(btn);
-            }
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(base);
+        d.setDate(base.getDate() + i);
 
-            const primeiro = diasContainer.querySelector('.dia-btn');
-            if (primeiro) primeiro.click();
-        }
+        if (d.getDay() === 0) continue;
 
-
-        async function carregarHorarios() {
-            horariosContainer.innerHTML = '';
-            erroHorario.classList.add('d-none');
-
-            for (let i = 0; i < 4; i++) {
-                const sk = document.createElement('div');
-                sk.className = 'skeleton';
-                horariosContainer.appendChild(sk);
-            }
-
-            const res = await fetch(
-                `horariosDisponiveis.php?data=${dataInput.value}&id_barb=${barbeiroSel.value}&id_servico=${servicoSel.value}`
-            );
-
-            const horarios = await res.json();
-            horariosContainer.innerHTML = '';
-
-            if (!horarios.length) {
-                horariosContainer.innerHTML = '<small class="text-muted">Nenhum horário disponível</small>';
-                return;
-            }
-
-            horarios.forEach((hora, idx) => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'hora-btn';
-                btn.textContent = hora;
-
-                if (hora === "<?= $horaAgenda ?>") btn.classList.add('active');
-                if (idx === 0) btn.classList.add('proximo');
-
-                btn.onclick = () => {
-                    document.querySelectorAll('.hora-btn').forEach(h => h.classList.remove('active'));
-                    btn.classList.add('active');
-                    horaSelect.innerHTML = `<option value="${hora}" selected>${hora}</option>`;
-                };
-
-                horariosContainer.appendChild(btn);
-            });
-        }
-
-
-        form.addEventListener('submit', e => {
-            if (!horaSelect.value) {
-                e.preventDefault();
-                erroHorario.classList.remove('d-none');
-                horariosContainer.classList.add('horario-erro');
-            }
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dia-btn';
+        btn.textContent = d.toLocaleDateString('pt-BR', {
+            weekday:'short', day:'2-digit', month:'2-digit'
         });
 
-        gerarDiasSemana();
-        carregarHorarios();
-    </script>
+        btn.dataset.date = formatarDataLocal(d);
+
+        if (btn.dataset.date === dataInput.value) {
+            btn.classList.add('active');
+        }
+
+        btn.onclick = () => {
+            document.querySelectorAll('.dia-btn')
+                .forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            dataInput.value = btn.dataset.date;
+            carregarHorarios();
+        };
+
+        diasContainer.appendChild(btn);
+    }
+}
+
+/* ===== CARREGAR HORÁRIOS ===== */
+async function carregarHorarios() {
+    horariosDiv.innerHTML = '';
+    horaInput.value = '';
+
+    const res = await fetch(
+        `horariosDisponiveis.php?data=${dataInput.value}&id_barb=${barbeiroSel.value}&id_servico=${servicoSel.value}`
+    );
+
+    const horarios = await res.json();
+
+    if (!horarios.length) {
+        horariosDiv.innerHTML = '<span class="text-muted">Nenhum horário disponível</span>';
+        return;
+    }
+
+    horarios.forEach(h => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'horario-btn';
+        btn.textContent = h;
+
+        if (h === "<?= $horaAtual ?>") {
+            btn.classList.add('active');
+            horaInput.value = h;
+        }
+
+        btn.onclick = () => {
+            document.querySelectorAll('.horario-btn')
+                .forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            horaInput.value = h;
+        };
+
+        horariosDiv.appendChild(btn);
+    });
+}
+
+/* ===== EVENTOS ===== */
+barbeiroSel.addEventListener('change', carregarHorarios);
+servicoSel.addEventListener('change', carregarHorarios);
+
+/* ===== INIT ===== */
+gerarDias();
+carregarHorarios();
+</script>
 
 </body>
-
 </html>
