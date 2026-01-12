@@ -2,90 +2,93 @@
 session_start();
 include_once("config.php");
 
+require_once("auth.php");
+requireLogin();
 
-if (!isset($_POST['submit'])) {
-    header("Location: agendados.php");
-    exit();
+/* =========================
+   VALIDAÇÃO BÁSICA
+========================= */
+if (
+    empty($_POST['id_agenda']) ||
+    empty($_POST['id_barb']) ||
+    empty($_POST['id_servico']) ||
+    empty($_POST['data_agenda']) ||
+    empty($_POST['hora_inicio'])
+) {
+    die("Dados inválidos.");
 }
 
+$idAgenda  = (int) $_POST['id_agenda'];
+$idBarb    = (int) $_POST['id_barb'];
+$idServico = (int) $_POST['id_servico'];
+$data      = $_POST['data_agenda'];
+$horaIni   = $_POST['hora_inicio'];
 
-$id       = intval($_POST['id_agenda'] ?? 0);
-$data     = trim($_POST['dia_corte'] ?? '');
-$hora     = trim($_POST['hora_corte'] ?? '');
-$idBarb   = intval($_POST['barbeiro_id'] ?? 0);
-
-
-if ($id <= 0 || $data === '' || $hora === '' || $idBarb <= 0) {
-    echo "Dados inválidos. Verifique e tente novamente.";
-    exit;
-}
-
-
-$hoje = date('Y-m-d');
-if ($data < $hoje) {
-    echo "<script>
-        alert('A data não pode ser anterior a hoje!');
-        window.history.back();
-    </script>";
-    exit;
-}
-
-
-$stmtCheck = $conexao->prepare("
-    SELECT id_agenda 
-    FROM agenda 
-    WHERE data_agenda = ? 
-      AND hora_agenda = ? 
-      AND id_barb = ?
-      AND id_agenda <> ?
-");
-if (!$stmtCheck) {
-    echo "Erro no banco: " . $conexao->error;
-    exit;
-}
-$stmtCheck->bind_param("ssii", $data, $hora, $idBarb, $id);
-$stmtCheck->execute();
-$resCheck = $stmtCheck->get_result();
-
-if ($resCheck->num_rows > 0) {
-    echo "<script>alert('Este horário já está ocupado por outro agendamento. Escolha outro horário.'); history.back();</script>";
-    $stmtCheck->close();
-    exit;
-}
-$stmtCheck->close();
-
-
+/* =========================
+   BUSCAR DURAÇÃO DO SERVIÇO
+========================= */
 $stmt = $conexao->prepare("
-    UPDATE agenda
-    SET data_agenda = ?, hora_agenda = ?, id_barb = ?
-    WHERE id_agenda = ?
+    SELECT duracao_min 
+    FROM servicos 
+    WHERE id_servico = ?
 ");
-if (!$stmt) {
-    echo "Erro ao preparar update: " . $conexao->error;
-    exit;
-}
-$stmt->bind_param("ssii", $data, $hora, $idBarb, $id);
+$stmt->bind_param("i", $idServico);
+$stmt->execute();
+$res = $stmt->get_result();
 
-if (! $stmt->execute()) {
-    echo "Erro ao atualizar: " . $stmt->error;
-    $stmt->close();
-    exit;
+if ($res->num_rows === 0) {
+    die("Serviço inválido.");
 }
+
+$duracao = (int) $res->fetch_assoc()['duracao_min'];
 $stmt->close();
 
+/* =========================
+   CALCULAR HORA FIM
+========================= */
+$inicio = new DateTime("$data $horaIni");
+$fim    = clone $inicio;
+$fim->modify("+{$duracao} minutes");
 
-$tipo = $_SESSION['tipo'] ?? '';
+$horaFim = $fim->format('H:i');
 
-if ($tipo === 'admin') {
-    header("Location: admin.php");
-    exit;
-}
+/* =========================
+   ATUALIZAR AGENDA
+========================= */
+$stmt = $conexao->prepare("
+    UPDATE agenda 
+    SET 
+        id_barb      = ?,
+        id_servico   = ?,
+        data_agenda  = ?,
+        hora_inicio  = ?,
+        hora_fim     = ?
+    WHERE id_agenda = ?
+");
+
+$stmt->bind_param(
+    "iisssi",
+    $idBarb,
+    $idServico,
+    $data,
+    $horaIni,
+    $horaFim,
+    $idAgenda
+);
+
+$stmt->execute();
+$stmt->close();
+
+/* =========================
+   REDIRECIONAMENTO (CORREÇÃO)
+========================= */
+$tipo = $_SESSION['tipo'] ?? 'cliente';
 
 if ($tipo === 'barbeiro') {
-    header("Location: barbeiro.php");
-    exit;
+    header("Location: barbeiros.php");
+} elseif ($tipo === 'admin') {
+    header("Location: admin.php");
+} else {
+    header("Location: agendados.php");
 }
-
-
-header("Location: agendados.php");
 exit;

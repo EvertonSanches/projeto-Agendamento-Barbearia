@@ -4,7 +4,7 @@ include_once("config.php");
 
 if (isset($_POST["submit"])) {
 
-    
+
     $nome       = $conexao->real_escape_string(trim($_POST["nome"]));
     $senhaHash  = password_hash($_POST["senha"], PASSWORD_DEFAULT);
     $email      = $conexao->real_escape_string(trim($_POST["email"]));
@@ -12,7 +12,7 @@ if (isset($_POST["submit"])) {
     $cpf        = $conexao->real_escape_string(trim($_POST["cpf"]));
     $data_nasc  = $_POST["data_nascimento"];
 
-    
+
     $stmtCheck = $conexao->prepare("SELECT id_cliente FROM cliente WHERE email = ?");
     $stmtCheck->bind_param("s", $email);
     $stmtCheck->execute();
@@ -25,7 +25,7 @@ if (isset($_POST["submit"])) {
     $stmtCheck->close();
 
 
-    
+
     $stmt = $conexao->prepare("
         INSERT INTO cliente (nome, senha, cpf, data_nasc, telefone, email)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -37,12 +37,12 @@ if (isset($_POST["submit"])) {
         exit();
     }
 
-    
+
     $id_cliente = $stmt->insert_id;
     $stmt->close();
 
 
-    
+
     $stmtUser = $conexao->prepare("
         INSERT INTO usuarios (nome, email, senha, tipo, id_cliente)
         VALUES (?, ?, ?, 'cliente', ?)
@@ -56,72 +56,84 @@ if (isset($_POST["submit"])) {
 
     $stmtUser->close();
 
-    
+
     header("Location: login.php?cadastro=sucesso");
     exit();
 }
 ?>
 
-
-
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
-    <title>Cadastro</title>
+    <title>Cadastro de Cliente</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/agendamento-barbearia/css/estiloBasico.css">
 </head>
-<body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container-fluid">
-        <div class="d-flex">
-            <a href="login.php" class="bi bi-card-checklist btn-light me-2 btn-lg"> Login</a>
-            <a href="login.php" class="bi bi-arrow-left-square btn-light btn-lg"> Voltar</a>
+
+<body class="bg-dark">
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-black">
+        <div class="container">
+            <a href="/agendamento-barbearia/index.php" class="navbar-brand">Barbearia GC</a>
+            <a href="login.php" class="btn btn-outline-light">Voltar</a>
         </div>
-    </div>    
-</nav>
+    </nav>
 
-<div class="logo">
-    <img src="/agendamento-barbearia/imagem/undraw_barber_utly.svg" alt="barbeiro efetuando corte"/>
-</div>
+    <div class="container d-flex justify-content-center align-items-center min-vh-100">
 
-<div class="box">
-    <form action="cadastro.php" method="POST" class="form">
-        <fieldset>
-            <legend><b>Cadastro de Clientes</b></legend>
-            <br>
-            <div class="inputBox">
-                <input type="text" name="nome" class="inputUser" required>
-                <label for="nome" class="labelInput">Nome</label>
+        <div class="card cadastro-card login-card">
+
+            <div class="card-body">
+
+                <h2 class="text-center mb-4">Cadastro de Cliente</h2>
+
+                <form action="cadastro.php" method="POST">
+
+                    <div class="mb-3">
+                        <label class="form-label">Nome</label>
+                        <input type="text" name="nome" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Senha</label>
+                        <input type="password" name="senha" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Telefone</label>
+                        <input type="tel" name="telefone" class="form-control" placeholder="(00) 00000-0000" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">CPF</label>
+                        <input type="text" name="cpf" class="form-control" placeholder="000.000.000-00" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Data de Nascimento</label>
+                        <input type="date" name="data_nascimento" class="form-control" required>
+                    </div>
+
+                    <button type="submit" name="submit" class="btn btn-warning w-100">
+                        Cadastrar
+                    </button>
+
+                </form>
+
             </div>
-            <br><br>
-            <div class="inputBox">
-                <input type="password" name="senha" class="inputUser" required>
-                <label for="senha" class="labelInput">Senha</label>
-            </div>
-            <br><br>
-            <div class="inputBox">
-                <input type="email" name="email" class="inputUser" required>
-                <label for="email" class="labelInput">Email</label>
-            </div>
-            <br><br>
-            <div class="inputBox">
-                <input type="tel" name="telefone" class="inputUser" placeholder="(00)00000-0000" maxlength="14" required>
-                <label for="telefone" class="labelInput">Telefone</label>
-            </div>
-            <br><br>
-            <div class="inputBox">
-                <input type="text" name="cpf" class="inputUser" placeholder="000.000.000-00" maxlength="14" required>
-                <label for="cpf" class="labelInput">CPF</label>
-            </div>
-            <br><br>
-            <label for="data_nascimento"><b>Data de Nascimento</b></label>
-            <input type="date" name="data_nascimento" required>
-            <br><br><br>
-            <input type="submit" name="submit" value="Cadastrar" class="btn btn-primary">
-        </fieldset>
-    </form>
-</div>
+        </div>
+
+    </div>
+
 </body>
+
 </html>

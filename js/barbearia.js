@@ -1,3 +1,13 @@
-function cadastrarPessoa() {
-    let cadastroRealizado = alert("Cadastro realizado com Sucesso!");
-    let bancoDeCadastro = (document.getElementById("form").value);}
+document.addEventListener("DOMContentLoaded", () => {
+    const card = document.querySelector('.login-card');
+    if (!card) return;
+
+   
+    card.style.opacity = '';
+    card.style.transform = '';
+
+    
+    requestAnimationFrame(() => {
+        card.setAttribute('data-state', 'visible');
+    });
+});

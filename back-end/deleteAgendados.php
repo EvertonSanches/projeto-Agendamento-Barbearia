@@ -1,19 +1,48 @@
 <?php
+session_start();
+include_once("config.php");
 
-   if (!empty($_GET['id_agenda'])) {
-
-    include_once('config.php');
-
-    
-    $id = intval($_GET['id_agenda']);
-
-    
-    $sqlDelete = "DELETE FROM agenda WHERE id_agenda = $id";
-    $resultDelete = $conexao->query($sqlDelete);
-
-    if (!$resultDelete) {
-        die("Erro ao deletar: " . $conexao->error);
-    }
+/* =========================
+   CHECAGEM MÍNIMA
+========================= */
+if (!isset($_SESSION['tipo'])) {
+    header("Location: login.php");
+    exit;
 }
-    header('Location: http://localhost/agendamento-barbearia/back-end/agendados.php');
-?>
+
+if (!isset($_GET['id_agenda'])) {
+    header("Location: agendados.php");
+    exit;
+}
+
+$idAgenda = (int) $_GET['id_agenda'];
+
+/* =========================
+   DELETE (COMO SEMPRE FOI)
+========================= */
+$stmt = $conexao->prepare("DELETE FROM agenda WHERE id_agenda = ?");
+$stmt->bind_param("i", $idAgenda);
+$stmt->execute();
+$stmt->close();
+
+/* =========================
+   REDIRECIONAMENTO CORRETO
+   (VOLTA PRA ONDE VEIO)
+========================= */
+if (!empty($_SERVER['HTTP_REFERER'])) {
+    header("Location: " . $_SERVER['HTTP_REFERER']);
+    exit;
+}
+
+/* FALLBACK (CASO RARO) */
+$tipo = $_SESSION['tipo'];
+
+if ($tipo === 'barbeiro') {
+    header("Location: barbeiros.php");
+} elseif ($tipo === 'admin') {
+    header("Location: admin.php");
+} else {
+    header("Location: agendados.php");
+}
+
+exit;

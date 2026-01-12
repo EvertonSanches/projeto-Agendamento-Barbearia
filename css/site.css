@@ -1,0 +1,81 @@
+/* =========================
+   RESET BÁSICO
+========================= */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 0;
+    padding-top: 72px; /* navbar fixa */
+}
+
+/* =========================
+   NAVBAR GLASS
+========================= */
+.navbar-glass {
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.navbar {
+    z-index: 1050;
+}
+
+.navbar a,
+.navbar .navbar-brand,
+.navbar .btn {
+    color: #fff !important;
+    opacity: 1 !important;
+}
+
+/* =========================
+   HERO
+========================= */
+.hero {
+    min-height: calc(100vh - 72px);
+    background:
+        linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
+        url('/agendamento-barbearia/imagem/barbearia-bg.jpg');
+    background-size: cover;
+    background-position: center;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hero-content {
+    text-align: center;
+    color: #fff;
+}
+
+.hero h1 {
+    font-size: 4rem;
+}
+
+/* =========================
+   SEÇÕES
+========================= */
+.section {
+    padding: 60px 0;
+}
+
+.footer {
+    background: #000;
+    color: #aaa;
+    text-align: center;
+    padding: 20px;
+}
+
+/* =========================
+   MOBILE
+========================= */
+@media (max-width: 768px) {
+    .hero h1 {
+        font-size: 2.5rem;
+    }
+}

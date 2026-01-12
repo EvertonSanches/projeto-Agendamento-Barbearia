@@ -2,148 +2,285 @@
 session_start();
 include_once("config.php");
 
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Pragma: no-cache");
-header("Expires: 0");
+require_once("auth.php");
+requireLogin();
+
+if (getUserType() !== 'admin') {
+    header("Location: login.php");
+    exit;
+}
 
 if (!isset($_SESSION['tipo']) || $_SESSION['tipo'] !== 'admin') {
     header("Location: login.php");
     exit;
 }
 
-
-if (isset($_POST['delete_id'])) {
+/* ======================
+   DELETE DE AGENDAMENTO
+====================== */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
     $id = intval($_POST['delete_id']);
-    $conexao->query("DELETE FROM agenda WHERE id_agenda = $id");
-}
-$search = "";
-if (!empty($_GET['search'])) {
-    $search = $conexao->real_escape_string($_GET['search']);
 
-    $sql = "
-        SELECT 
-            a.id_agenda,
-            a.data_agenda,
-            a.hora_agenda,
-            c.nome AS nome_cliente,
-            b.nome_barb AS nome_barbeiro
-        FROM agenda a
-        JOIN cliente c ON a.id_cliente = c.id_cliente
-        JOIN barbeiro b ON a.id_barb = b.id_barb
-        WHERE 
-            a.id_agenda LIKE '%$search%'
-            OR c.nome LIKE '%$search%'
-            OR b.nome_barb LIKE '%$search%'
-            OR DATE_FORMAT(a.data_agenda, '%d/%m/%Y') LIKE '%$search%'
-            OR a.data_agenda LIKE '%$search%'
-            OR a.hora_agenda LIKE '%$search%'
-        ORDER BY a.data_agenda, a.hora_agenda
-    ";
-} else {
-    $sql = "
-        SELECT 
-            a.id_agenda,
-            a.data_agenda,
-            a.hora_agenda,
-            c.nome AS nome_cliente,
-            b.nome_barb AS nome_barbeiro
-        FROM agenda a
-        JOIN cliente c ON a.id_cliente = c.id_cliente
-        JOIN barbeiro b ON a.id_barb = b.id_barb
-        ORDER BY a.data_agenda, a.hora_agenda
-    ";
+    $stmt = $conexao->prepare("DELETE FROM agenda WHERE id_agenda = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->close();
+
+    header("Location: admin.php");
+    exit;
 }
+
+$hoje = date('Y-m-d');
+
+/* ======================
+   MÉTRICAS
+====================== */
+$agHoje = $conexao->query("
+    SELECT COUNT(*) total FROM agenda WHERE data_agenda = '$hoje'
+")->fetch_assoc()['total'];
+
+$agAtrasados = $conexao->query("
+    SELECT COUNT(*) total FROM agenda WHERE data_agenda < '$hoje'
+")->fetch_assoc()['total'];
+
+$agSemana = $conexao->query("
+    SELECT COUNT(*) total 
+    FROM agenda 
+    WHERE YEARWEEK(data_agenda, 1) = YEARWEEK(CURDATE(), 1)
+")->fetch_assoc()['total'];
+
+$barbeiros = $conexao->query("
+    SELECT COUNT(*) total FROM barbeiro
+")->fetch_assoc()['total'];
+
+/* ======================
+   FILTRO
+====================== */
+$filtro = $_GET['filtro'] ?? '';
+$where = "";
+
+if ($filtro === 'hoje') {
+    $where = "WHERE a.data_agenda = '$hoje'";
+}
+if ($filtro === 'atrasados') {
+    $where = "WHERE a.data_agenda < '$hoje'";
+}
+if ($filtro === 'semana') {
+    $where = "WHERE YEARWEEK(a.data_agenda, 1) = YEARWEEK(CURDATE(), 1)";
+}
+
+/* ======================
+   LISTAGEM
+====================== */
+$sql = "
+    SELECT 
+        a.id_agenda,
+        a.data_agenda,
+        a.hora_inicio,
+        c.nome AS nome_cliente,
+        b.nome_barb AS nome_barbeiro
+    FROM agenda a
+    JOIN cliente c ON a.id_cliente = c.id_cliente
+    JOIN barbeiro b ON a.id_barb = b.id_barb
+    $where
+    ORDER BY a.data_agenda, a.hora_inicio
+";
 
 $result = $conexao->query($sql);
-
-
-
 ?>
 
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
-    <title>Administrador</title>
-   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Dashboard Admin</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
-        .box-search{
+        body {
+            background: #0e0e0e;
+            color: #fff;
+            padding-top: 60px;
+        }
+
+        .admin-layout {
             display: flex;
+            min-height: calc(100vh - 60px);
+        }
+
+        .admin-sidebar {
+            width: 220px;
+            background: #111;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .admin-sidebar a {
+            color: #ccc;
+            text-decoration: none;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .admin-sidebar a.active,
+        .admin-sidebar a:hover {
+            background: #ffc107;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .admin-content {
+            flex: 1;
+            padding: 30px;
+        }
+
+        .card-metric {
+            background: #111;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .card-metric h2 {
+            font-size: 2.2rem;
+            margin: 0;
+        }
+
+        .card-metric span {
+            color: #aaa;
+        }
+
+        .data-passada {
+            color: #ff4d4d;
+            font-weight: bold;
+        }
+
+        .data-hoje {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .table-box {
+            background: rgba(0, 0, 0, .75);
+            padding: 20px;
+            border-radius: 12px;
         }
     </style>
 </head>
 
-<body class="bg-dark text-white">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-warning">
+<body>
+
+<nav class="navbar navbar-dark bg-black fixed-top">
     <div class="container-fluid">
-        <a class="navbar-brand"href="/agendamento-barbearia/login.html">Home</a> 
-        <div class="d-flex">
-            <a href="sair.php" class="btn btn-danger me-5">Sair</a>
-        </div>
+        <span class="navbar-brand fw-bold text-warning">
+            Painel Administrativo
+        </span>
+        <a href="sair.php" class="btn btn-danger">Sair</a>
     </div>
-    </nav>
-    <div class="container mt-5">
-        <h1>Controle de agendamentos</h1>
-        <br><br>
-        <div class="search-box d-flex align-items-center gap-2">
-            <input type="search" class="form-control w-25" placeholder="Pesquisar agendamento" id="pesquisar">
-            <button onclick="searchData()" class="btn btn-warning">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
-                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
-                </svg>
-            </button>
+</nav>
+
+<div class="admin-layout">
+
+    <aside class="admin-sidebar">
+        <a href="admin.php" class="<?= !$filtro ? 'active' : '' ?>">Dashboard</a>
+        <a href="admin.php">Agendamentos</a>
+        <a href="admin_clientes.php">Clientes</a>
+        <a href="admin_barbeiros.php">Barbeiros</a>
+    </aside>
+
+    <main class="admin-content">
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <a href="admin.php?filtro=hoje" class="text-decoration-none">
+                    <div class="card-metric">
+                        <h2><?= $agHoje ?></h2>
+                        <span>Hoje</span>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-3">
+                <a href="admin.php?filtro=semana" class="text-decoration-none">
+                    <div class="card-metric">
+                        <h2 class="text-warning"><?= $agSemana ?></h2>
+                        <span>Semana</span>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-3">
+                <a href="admin.php?filtro=atrasados" class="text-decoration-none">
+                    <div class="card-metric">
+                        <h2 class="text-danger"><?= $agAtrasados ?></h2>
+                        <span>Atrasados</span>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-3">
+                <a href="admin_barbeiros.php" class="text-decoration-none">
+                    <div class="card-metric">
+                        <h2><?= $barbeiros ?></h2>
+                        <span>Barbeiros</span>
+                    </div>
+                </a>
+            </div>
         </div>
-        <br>
-        <table class="table table-dark table-bordered border-warning">
-            <thead>
-                <tr>
-                    <th>Cliente</th>
-                    <th>Barbeiro</th>
-                    <th>Dia</th>
-                    <th>Hora</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
 
-            <tbody>
-                <?php while ($row = mysqli_fetch_assoc($result)) { ?>
-                <tr>
-                    <td><?= $row['nome_cliente'] ?></td>
-                    <td><?= $row['nome_barbeiro'] ?></td>
-                    <td><?= $row['data_agenda'] ?></td>
-                    <td><?= $row['hora_agenda'] ?></td>
+        <div class="table-box table-responsive">
+            <table class="table table-dark table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Barbeiro</th>
+                        <th>Data</th>
+                        <th>Hora</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
 
-                    <td>
-                        <a class="btn btn-primary"
-                           href="editar.php?id_agenda=<?= $row['id_agenda'] ?>">
-                           Editar
-                        </a>
-                        <form method="POST" style="display:inline;"
-                              onsubmit="return confirm('Deseja realmente deletar este agendamento?');">
-                            <input type="hidden" name="delete_id" value="<?= $row['id_agenda'] ?>">
-                            <button type="submit" class="btn btn-danger">Deletar</button>
-                        </form>
+                <tbody>
+                    <?php while ($row = mysqli_fetch_assoc($result)) {
 
-                    </td>
-                </tr>
-                <?php } ?>
-            </tbody>
-        </table>
-    </div>
+                        $classe = '';
+                        if ($row['data_agenda'] < $hoje) {
+                            $classe = 'data-passada';
+                        } elseif ($row['data_agenda'] === $hoje) {
+                            $classe = 'data-hoje';
+                        }
+
+                        // 🔹 CORREÇÃO SOMENTE DE EXIBIÇÃO
+                        $dataFormatada = date('d/m/Y', strtotime($row['data_agenda']));
+                        $horaFormatada = date('H:i', strtotime($row['hora_inicio']));
+                    ?>
+                        <tr>
+                            <td><?= $row['nome_cliente'] ?></td>
+                            <td><?= $row['nome_barbeiro'] ?></td>
+                            <td class="<?= $classe ?>"><?= $dataFormatada ?></td>
+                            <td><?= $horaFormatada ?></td>
+                            <td>
+                                <a href="editar.php?id_agenda=<?= $row['id_agenda'] ?>"
+                                   class="btn btn-sm btn-warning">Editar</a>
+
+                                <form method="POST" style="display:inline"
+                                      onsubmit="return confirm('Deseja deletar este agendamento?');">
+                                    <input type="hidden" name="delete_id" value="<?= $row['id_agenda'] ?>">
+                                    <button class="btn btn-sm btn-danger">Excluir</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
+        </div>
+
+    </main>
+</div>
+
 </body>
-<script>
-    let search = document.getElementById('pesquisar');
-
-    search.addEventListener("keydown", function(event){
-        if (event.key === "Enter"){
-            event.preventDefault(); 
-            searchData();
-        }
-    });
-
-    function searchData(){
-        window.location = 'admin.php?search=' + encodeURIComponent(search.value);
-    }
-</script>
-
 </html>
